@@ -46,4 +46,10 @@ public class BeneficiarioController {
         beneficiarioService.deletarBeneficiario(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/buscar")
+    public ResponseEntity<List<BeneficiarioResponseDTO>> buscarPorEmpresaIdECpf(@RequestParam Long empresaId, @RequestParam String cpf) {
+        List<BeneficiarioResponseDTO> beneficiarios = beneficiarioService.buscarPorEmpresaIdECpf(empresaId, cpf);
+        return ResponseEntity.ok(beneficiarios);
+    }
 }

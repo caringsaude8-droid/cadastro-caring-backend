@@ -39,7 +39,7 @@ public class SolicitacaoBeneficiario {
     @Column(name = "SOL_OBSERVACOES")
     private String observacoes;
 
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "SOL_DATA_SOLICITACAO")
     private Date dataSolicitacao;
 

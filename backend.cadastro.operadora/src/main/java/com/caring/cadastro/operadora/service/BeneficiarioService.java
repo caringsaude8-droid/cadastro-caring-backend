@@ -20,6 +20,7 @@ public class BeneficiarioService {
     private EmpresaRepository empresaRepository;
 
     public BeneficiarioResponseDTO criarBeneficiario(BeneficiarioRequestDTO dto) {
+        System.out.println("[DEBUG] benEmpId recebido em criarBeneficiario: " + dto.benEmpId);
         Empresa empresa = empresaRepository.findById(dto.benEmpId)
             .orElseThrow(() -> new RuntimeException("Empresa não encontrada"));
         Beneficiario beneficiario = new Beneficiario();
@@ -52,7 +53,7 @@ public class BeneficiarioService {
         beneficiario.setBenIdentGenero(dto.benIdentGenero);
         beneficiario.setBenCodCartao(dto.benCodCartao);
         beneficiario.setBenMotivoExclusao(dto.benMotivoExclusao);
-        beneficiario.setBenStatus(dto.benStatus);
+        beneficiario.setBenStatus("ATIVO");
         beneficiario.setBenNumero(dto.benNumero);
         if (dto.benTitularId != null) {
             beneficiario.setTitular(beneficiarioRepository.findById(dto.benTitularId).orElse(null));
@@ -156,5 +157,12 @@ public class BeneficiarioService {
 
     public void deletarBeneficiario(Long id) {
         beneficiarioRepository.deleteById(id);
+    }
+
+    public List<BeneficiarioResponseDTO> buscarPorEmpresaIdECpf(Long empresaId, String cpf) {
+        List<Beneficiario> beneficiarios = beneficiarioRepository.findByEmpresaIdAndBenCpf(empresaId, cpf);
+        return beneficiarios.stream()
+            .map(this::toResponseDTO)
+            .collect(java.util.stream.Collectors.toList());
     }
 }

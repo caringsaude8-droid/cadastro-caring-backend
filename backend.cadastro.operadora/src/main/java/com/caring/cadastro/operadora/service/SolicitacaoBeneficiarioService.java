@@ -12,6 +12,10 @@ import com.caring.cadastro.operadora.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationContext;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.Date;
 import java.util.List;
@@ -36,22 +40,57 @@ public class SolicitacaoBeneficiarioService {
     @Autowired
     private SolicitacaoHistoricoRepository historicoRepository;
 
+    @Autowired
+    private com.caring.cadastro.operadora.domain.repository.EmpresaRepository empresaRepository;
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public SolicitacaoResponseDTO criarSolicitacao(SolicitacaoRequestDTO dto, Long usuarioId, String usuarioNome) {
+        System.out.println("[DEBUG] dto.empresaId recebido: " + dto.empresaId);
         // Buscar beneficiário
-        Beneficiario beneficiario = beneficiarioRepository.findById(dto.beneficiarioId)
-            .orElseThrow(() -> new RuntimeException("Beneficiário não encontrado"));
+        Beneficiario beneficiario = null;
+        if (dto.beneficiarioId != null) {
+            beneficiario = beneficiarioRepository.findById(dto.beneficiarioId)
+                .orElseThrow(() -> new RuntimeException("Beneficiário não encontrado (id=" + dto.beneficiarioId + ")"));
+        } else {
+            // Para inclusões o beneficiarioId pode ser nulo (conforme DTO). Não chamar findById(null).
+            if (dto.tipo != null && dto.tipo != SolicitacaoBeneficiario.TipoMovimentacao.INCLUSAO) {
+                throw new IllegalArgumentException("beneficiarioId é obrigatório para solicitações do tipo " + dto.tipo);
+            }
+            // No caso de INCLUSAO, o beneficiario será criado a partir de dadosPropostos (ou tratado posteriormente).
+        }
 
         // Verificar se já existe solicitação pendente para este beneficiário
-        if (solicitacaoRepository.existeSolicitacaoPendentePorBeneficiario(dto.beneficiarioId)) {
+        if (dto.beneficiarioId != null && solicitacaoRepository.existeSolicitacaoPendentePorBeneficiario(dto.beneficiarioId)) {
             throw new RuntimeException("Já existe uma solicitação pendente para este beneficiário");
         }
 
         // Criar solicitação
         SolicitacaoBeneficiario solicitacao = new SolicitacaoBeneficiario();
         solicitacao.setBeneficiario(beneficiario);
-        solicitacao.setBeneficiarioCpf(beneficiario.getBenCpf());
-        solicitacao.setBeneficiarioNome(beneficiario.getBenNomeSegurado());
         solicitacao.setTipo(dto.tipo);
+        solicitacao.setStatus(StatusSolicitacao.PENDENTE);
+        solicitacao.setMotivoExclusao(dto.motivoExclusao);
+        solicitacao.setObservacoesSolicitacao(dto.observacoesSolicitacao);
+        solicitacao.setUsuarioSolicitanteId(usuarioId);
+        solicitacao.setUsuarioSolicitanteNome(usuarioNome);
+
+        // Preencher beneficiarioCpf e beneficiarioNome conforme o tipo de solicitação
+        if (dto.tipo == SolicitacaoBeneficiario.TipoMovimentacao.INCLUSAO) {
+            // Inclusão: usar apenas o valor do DTO (corpo principal)
+            solicitacao.setBeneficiarioCpf(dto.beneficiarioCpf);
+            solicitacao.setBeneficiarioNome(dto.beneficiarioNome);
+        } else {
+            // Alteração/Exclusão: sempre usa o valor do beneficiário já cadastrado
+            if (beneficiario != null) {
+                solicitacao.setBeneficiarioCpf(beneficiario.getBenCpf());
+                solicitacao.setBeneficiarioNome(beneficiario.getBenNomeSegurado());
+            }
+        }
         solicitacao.setStatus(StatusSolicitacao.PENDENTE);
         solicitacao.setMotivoExclusao(dto.motivoExclusao);
         solicitacao.setObservacoesSolicitacao(dto.observacoesSolicitacao);
@@ -60,24 +99,14 @@ public class SolicitacaoBeneficiarioService {
 
         // Associar empresa do beneficiário, se houver, ou do DTO se enviado
         if (dto.empresaId != null) {
-            // Buscar empresa pelo id
-            com.caring.cadastro.operadora.domain.entity.Empresa empresa = null;
-            try {
-                empresa = beneficiario.getEmpresa(); // fallback
-                // Buscar empresa pelo id se diferente do beneficiário
-                if (beneficiario.getEmpresa() == null || !beneficiario.getEmpresa().getId().equals(dto.empresaId)) {
-                    // TODO: Buscar repositório de empresa e atribuir
-                    // Exemplo: empresa = empresaRepository.findById(dto.empresaId).orElse(null);
-                }
-            } catch (Exception e) {
-                // fallback para null
-            }
-            if (empresa != null) {
-                solicitacao.setEmpresa(empresa);
-            }
-        } else if (beneficiario.getEmpresa() != null) {
+            com.caring.cadastro.operadora.domain.entity.Empresa empresa = empresaRepository.findById(dto.empresaId)
+                .orElseThrow(() -> new RuntimeException("Empresa não encontrada (id=" + dto.empresaId + ")"));
+            solicitacao.setEmpresa(empresa);
+            System.out.println("[DEBUG] empresaId recebido do front: " + dto.empresaId + ", associado: " + (empresa != null ? empresa.getId() : null));
+        } else if (beneficiario != null && beneficiario.getEmpresa() != null) {
             solicitacao.setEmpresa(beneficiario.getEmpresa());
         }
+        System.out.println("[DEBUG] empresaId na solicitação antes do save: " + (solicitacao.getEmpresa() != null ? solicitacao.getEmpresa().getId() : null));
 
         // Serializar dados propostos como JSON (para inclusão/alteração)
         if (dto.dadosPropostos != null) {
@@ -88,7 +117,30 @@ public class SolicitacaoBeneficiarioService {
             }
         }
 
+        // Preencher campos adicionais do DTO se enviados
+        if (dto.beneficiarioNome != null) {
+            solicitacao.setBeneficiarioNome(dto.beneficiarioNome);
+        }
+        if (dto.beneficiarioCpf != null) {
+            solicitacao.setBeneficiarioCpf(dto.beneficiarioCpf);
+        }
+        if (dto.observacoes != null) {
+            solicitacao.setObservacoes(dto.observacoes);
+        }
+        if (dto.observacoesAprovacao != null) {
+            solicitacao.setObservacoesAprovacao(dto.observacoesAprovacao);
+        }
+
+        // Garantir que beneficiarioCpf e beneficiarioNome sejam preenchidos do corpo principal ou de dadosPropostos
+        // Remover busca em dadosPropostos, pois o frontend envia beneficiarioNome e beneficiarioCpf apenas no corpo principal
+
+        System.out.println("[DEBUG] DTO recebido do controller: " + dto);
+        System.out.println("[DEBUG] CPF para gravar: " + solicitacao.getBeneficiarioCpf());
+        System.out.println("[DEBUG] Nome para gravar: " + solicitacao.getBeneficiarioNome());
+
         solicitacao = solicitacaoRepository.save(solicitacao);
+        entityManager.flush();
+        System.out.println("[DEBUG] empresaId na solicitação após save/flush: " + (solicitacao.getEmpresa() != null ? solicitacao.getEmpresa().getId() : null));
         return toResponseDTO(solicitacao);
     }
 
@@ -96,8 +148,7 @@ public class SolicitacaoBeneficiarioService {
         List<SolicitacaoBeneficiario> solicitacoes;
 
         if (empresaId != null) {
-            solicitacoes = solicitacaoRepository.findByEmpresaViaUsuarioAndStatus(
-                empresaId, "PENDENTE");
+            solicitacoes = solicitacaoRepository.findByEmpresaId(empresaId);
         } else {
             solicitacoes = solicitacaoRepository.findByStatusOrderByDataSolicitacaoDesc(
                 StatusSolicitacao.PENDENTE);
@@ -131,12 +182,34 @@ public class SolicitacaoBeneficiarioService {
         solicitacao.setObservacoesAprovacao(dto.observacoesAprovacao);
         solicitacao.setDataAprovacao(new java.util.Date());
 
-        // NOVO: Se vier dadosAprovacao, sobrescreve ou complementa o dadosJson
-        if (dto.dadosAprovacao != null) {
+        // NOVO: Se vier dadosAprovacao, mesclar com dadosPropostos do dadosJson, apenas para INCLUSAO
+        if ("APROVAR".equals(dto.acao)
+                && dto.dadosAprovacao != null
+                && solicitacao.getTipo() == com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.TipoMovimentacao.INCLUSAO) {
             try {
-                solicitacao.setDadosJson(objectMapper.writeValueAsString(dto.dadosAprovacao));
+                // 1. Ler dadosJson original
+                String dadosJsonOriginal = solicitacao.getDadosJson();
+                if (dadosJsonOriginal != null) {
+                    SolicitacaoRequestDTO dtoCompleto = objectMapper.readValue(
+                        dadosJsonOriginal,
+                        SolicitacaoRequestDTO.class
+                    );
+                    // 2. Mesclar campos de dadosAprovacao em dadosPropostos
+                    if (dtoCompleto.dadosPropostos != null) {
+                        java.util.Map<String, Object> dadosPropostosMap = objectMapper.convertValue(
+                            dtoCompleto.dadosPropostos, java.util.Map.class);
+                        if (dto.dadosAprovacao.benCodCartao != null) {
+                            dadosPropostosMap.put("benCodCartao", dto.dadosAprovacao.benCodCartao);
+                        }
+                        if (dto.dadosAprovacao.benCodUnimedSeg != null) {
+                            dadosPropostosMap.put("benCodUnimedSeg", dto.dadosAprovacao.benCodUnimedSeg);
+                        }
+                        dtoCompleto.dadosPropostos = dadosPropostosMap;
+                        solicitacao.setDadosJson(objectMapper.writeValueAsString(dtoCompleto));
+                    }
+                }
             } catch (Exception e) {
-                throw new RuntimeException("Erro ao serializar dados da aprovação", e);
+                throw new RuntimeException("Erro ao mesclar dados de aprovação", e);
             }
         }
 
@@ -154,6 +227,7 @@ public class SolicitacaoBeneficiarioService {
 
     private void efetivarAlteracao(SolicitacaoBeneficiario solicitacao) {
         try {
+            System.out.println("[DEBUG] Entrou em efetivarAlteracao, tipo=" + solicitacao.getTipo());
             switch (solicitacao.getTipo()) {
                 case EXCLUSAO:
                     // Para exclusões, usar beneficiário existente
@@ -180,19 +254,31 @@ public class SolicitacaoBeneficiarioService {
 
                 case INCLUSAO:
                     // Desserializar dados JSON e criar novo beneficiário
+                    System.out.println("[DEBUG] Vai criar beneficiario, dadosJson=" + solicitacao.getDadosJson());
                     if (solicitacao.getDadosJson() != null) {
-                        BeneficiarioRequestDTO novosDados = objectMapper.readValue(
-                            solicitacao.getDadosJson(),
-                            BeneficiarioRequestDTO.class
-                        );
+                        BeneficiarioRequestDTO novosDados = null;
+                        try {
+                            novosDados = objectMapper.readValue(
+                                solicitacao.getDadosJson(),
+                                BeneficiarioRequestDTO.class
+                            );
+                        } catch (Exception e) {
+                            System.out.println("[ERROR] Falha ao desserializar dadosJson: " + e.getMessage());
+                            throw new RuntimeException("Erro ao desserializar dadosJson", e);
+                        }
+                        if (novosDados == null) {
+                            System.out.println("[ERROR] BeneficiarioRequestDTO desserializado é nulo! JSON: " + solicitacao.getDadosJson());
+                            throw new RuntimeException("Erro ao efetivar solicitação: dadosJson não pôde ser convertido para BeneficiarioRequestDTO");
+                        }
+                        System.out.println("[DEBUG] BeneficiarioRequestDTO desserializado: " + novosDados);
                         beneficiarioService.criarBeneficiario(novosDados);
                     }
                     break;
             }
-
+            System.out.println("[DEBUG] Saiu de efetivarAlteracao");
             solicitacao.setDataEfetivacao(new Date());
-
         } catch (Exception e) {
+            System.out.println("[ERROR] Erro ao efetivar solicitação: " + e.getMessage());
             throw new RuntimeException("Erro ao efetivar solicitação", e);
         }
     }
@@ -280,6 +366,7 @@ public class SolicitacaoBeneficiarioService {
         dto.observacoesSolicitacao = solicitacao.getObservacoesSolicitacao();
         dto.observacoesAprovacao = solicitacao.getObservacoesAprovacao();
         dto.empresaId = solicitacao.getEmpresa() != null ? solicitacao.getEmpresa().getId() : null;
+        dto.dadosJson = solicitacao.getDadosJson();
         return dto;
     }
 
@@ -294,5 +381,25 @@ public class SolicitacaoBeneficiarioService {
         return solicitacoes.stream()
             .map(SolicitacaoBeneficiarioService::toResponseDTO)
             .collect(Collectors.toList());
+    }
+
+    public void atualizarSolicitacao(Long id, AtualizacaoSolicitacaoDTO dto) {
+        SolicitacaoBeneficiario solicitacao = solicitacaoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Solicitação não encontrada"));
+        if (solicitacao.getStatus() != SolicitacaoBeneficiario.StatusSolicitacao.REJEITADA) {
+            throw new RuntimeException("Só é possível editar solicitações rejeitadas");
+        }
+        if (dto.observacoesSolicitacao != null) {
+            solicitacao.setObservacoesSolicitacao(dto.observacoesSolicitacao);
+        }
+        if (dto.dadosPropostos != null) {
+            try {
+                solicitacao.setDadosJson(objectMapper.writeValueAsString(dto.dadosPropostos));
+            } catch (Exception e) {
+                throw new RuntimeException("Erro ao serializar dadosPropostos", e);
+            }
+        }
+        solicitacao.setStatus(SolicitacaoBeneficiario.StatusSolicitacao.PENDENTE); // volta para análise
+        solicitacaoRepository.save(solicitacao);
     }
 }

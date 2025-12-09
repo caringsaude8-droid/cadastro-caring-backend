@@ -32,4 +32,5 @@ public class SolicitacaoResponseDTO {
 
     // Dados do beneficiário para contexto (opcional)
     public BeneficiarioResponseDTO beneficiarioAtual;
+    public String dadosJson;
 }

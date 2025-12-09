@@ -4,6 +4,7 @@ import com.caring.cadastro.operadora.dto.ProcessarSolicitacaoDTO;
 import com.caring.cadastro.operadora.dto.SolicitacaoRequestDTO;
 import com.caring.cadastro.operadora.dto.SolicitacaoResponseDTO;
 import com.caring.cadastro.operadora.dto.HistoricoSolicitacaoDTO;
+import com.caring.cadastro.operadora.dto.AtualizacaoSolicitacaoDTO;
 import com.caring.cadastro.operadora.service.SolicitacaoBeneficiarioService;
 import com.caring.cadastro.operadora.security.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -33,6 +34,8 @@ public class SolicitacaoBeneficiarioController {
     public ResponseEntity<SolicitacaoResponseDTO> criarSolicitacao(
             @RequestBody SolicitacaoRequestDTO dto,
             Authentication authentication) {
+
+        System.out.println("[DEBUG] DTO recebido no controller: " + dto);
 
         Long usuarioId = extractUserIdFromAuth(authentication);
         String usuarioNome = extractUserNameFromAuth(authentication);
@@ -89,6 +92,12 @@ public class SolicitacaoBeneficiarioController {
             return ResponseEntity.ok(solicitacaoService.listarSolicitacoesPorEmpresa(empresaId));
         }
         return ResponseEntity.ok(solicitacaoService.listarTodasSolicitacoes());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> atualizarSolicitacao(@PathVariable Long id, @RequestBody AtualizacaoSolicitacaoDTO dto) {
+        solicitacaoService.atualizarSolicitacao(id, dto);
+        return ResponseEntity.ok().build();
     }
 
     // Métodos auxiliares simples
