@@ -58,10 +58,12 @@ public class SolicitacaoBeneficiarioController {
             @RequestBody ProcessarSolicitacaoDTO dto,
             Authentication authentication) {
 
+        System.out.println("[LOG] Corpo do request recebido: " + dto);
         Long aprovadorId = extractUserIdFromAuth(authentication);
         String aprovadorNome = extractUserNameFromAuth(authentication);
 
         SolicitacaoResponseDTO response = solicitacaoService.processarSolicitacao(id, dto, aprovadorId, aprovadorNome);
+        System.out.println("[LOG] Response gerado: " + response);
         return ResponseEntity.ok(response);
     }
 

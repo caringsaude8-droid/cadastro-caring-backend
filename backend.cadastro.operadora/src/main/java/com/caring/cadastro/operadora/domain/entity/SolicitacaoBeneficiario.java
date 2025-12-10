@@ -107,6 +107,34 @@ public class SolicitacaoBeneficiario {
         updatedAt = new Date();
     }
 
+    @Override
+    public String toString() {
+        return "SolicitacaoBeneficiario{" +
+                "id=" + id +
+                ", numeroSolicitacao='" + numeroSolicitacao + '\'' +
+                ", beneficiarioId=" + (beneficiario != null ? beneficiario.getId() : null) +
+                ", beneficiarioCpf='" + beneficiarioCpf + '\'' +
+                ", beneficiarioNome='" + beneficiarioNome + '\'' +
+                ", tipo=" + tipo +
+                ", status=" + status +
+                ", motivoExclusao='" + motivoExclusao + '\'' +
+                ", observacoes='" + observacoes + '\'' +
+                ", dataSolicitacao=" + dataSolicitacao +
+                ", dataAprovacao=" + dataAprovacao +
+                ", dataEfetivacao=" + dataEfetivacao +
+                ", usuarioSolicitanteId=" + usuarioSolicitanteId +
+                ", usuarioSolicitanteNome='" + usuarioSolicitanteNome + '\'' +
+                ", aprovadorId=" + aprovadorId +
+                ", aprovadorNome='" + aprovadorNome + '\'' +
+                ", observacoesSolicitacao='" + observacoesSolicitacao + '\'' +
+                ", observacoesAprovacao='" + observacoesAprovacao + '\'' +
+                ", dadosJson='" + dadosJson + '\'' +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                ", empresaId=" + (empresa != null ? empresa.getId() : null) +
+                '}';
+    }
+
     // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

@@ -169,10 +169,14 @@ public class SolicitacaoBeneficiarioService {
 
     public SolicitacaoResponseDTO processarSolicitacao(Long solicitacaoId, ProcessarSolicitacaoDTO dto,
                                                       Long aprovadorId, String aprovadorNome) {
+        System.out.println("[LOG] Iniciando processamento da solicitação: id=" + solicitacaoId);
+        System.out.println("[LOG] DTO recebido: " + (dto != null ? dto.toString() : "null"));
         SolicitacaoBeneficiario solicitacao = solicitacaoRepository.findById(solicitacaoId)
             .orElseThrow(() -> new RuntimeException("Solicitação não encontrada"));
 
+        System.out.println("[LOG] Solicitacao carregada do banco: " + solicitacao.toString());
         if (solicitacao.getStatus() != StatusSolicitacao.PENDENTE) {
+            System.out.println("[LOG] Solicitacao já processada, status=" + solicitacao.getStatus());
             throw new RuntimeException("Solicitação já foi processada");
         }
 
@@ -187,14 +191,12 @@ public class SolicitacaoBeneficiarioService {
                 && dto.dadosAprovacao != null
                 && solicitacao.getTipo() == com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.TipoMovimentacao.INCLUSAO) {
             try {
-                // 1. Ler dadosJson original
                 String dadosJsonOriginal = solicitacao.getDadosJson();
                 if (dadosJsonOriginal != null) {
                     SolicitacaoRequestDTO dtoCompleto = objectMapper.readValue(
                         dadosJsonOriginal,
                         SolicitacaoRequestDTO.class
                     );
-                    // 2. Mesclar campos de dadosAprovacao em dadosPropostos
                     if (dtoCompleto.dadosPropostos != null) {
                         java.util.Map<String, Object> dadosPropostosMap = objectMapper.convertValue(
                             dtoCompleto.dadosPropostos, java.util.Map.class);
@@ -206,22 +208,26 @@ public class SolicitacaoBeneficiarioService {
                         }
                         dtoCompleto.dadosPropostos = dadosPropostosMap;
                         solicitacao.setDadosJson(objectMapper.writeValueAsString(dtoCompleto));
+                        System.out.println("[LOG] DadosPropostos mesclados: " + dtoCompleto.dadosPropostos);
                     }
                 }
             } catch (Exception e) {
+                System.out.println("[ERROR] Erro ao mesclar dados de aprovação: " + e.getMessage());
                 throw new RuntimeException("Erro ao mesclar dados de aprovação", e);
             }
         }
 
         if ("APROVAR".equals(dto.acao)) {
             solicitacao.setStatus(StatusSolicitacao.APROVADA);
-            // Efetivar a alteração no beneficiário
+            System.out.println("[LOG] Efetivando alteração para solicitação id=" + solicitacaoId);
             efetivarAlteracao(solicitacao);
         } else if ("REJEITAR".equals(dto.acao)) {
             solicitacao.setStatus(StatusSolicitacao.REJEITADA);
         }
 
+        System.out.println("[LOG] Solicitacao antes do save: " + solicitacao.toString());
         solicitacao = solicitacaoRepository.save(solicitacao);
+        System.out.println("[LOG] Solicitacao após o save: " + solicitacao.toString());
         return toResponseDTO(solicitacao);
     }
 

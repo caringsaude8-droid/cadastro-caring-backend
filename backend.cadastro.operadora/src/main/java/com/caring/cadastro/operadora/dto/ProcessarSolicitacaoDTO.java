@@ -4,4 +4,13 @@ public class ProcessarSolicitacaoDTO {
     public String acao; // "APROVAR" ou "REJEITAR"
     public String observacoesAprovacao;
     public DadosAprovacaoDTO dadosAprovacao; // Alterado para DTO específico
+
+    @Override
+    public String toString() {
+        return "ProcessarSolicitacaoDTO{" +
+                "acao='" + acao + '\'' +
+                ", observacoesAprovacao='" + observacoesAprovacao + '\'' +
+                ", dadosAprovacao=" + dadosAprovacao +
+                '}';
+    }
 }
