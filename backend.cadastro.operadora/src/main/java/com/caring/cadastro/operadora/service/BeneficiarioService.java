@@ -146,7 +146,7 @@ public class BeneficiarioService {
         beneficiario.setBenIdentGenero(dto.benIdentGenero);
         beneficiario.setBenCodCartao(dto.benCodCartao);
         beneficiario.setBenMotivoExclusao(dto.benMotivoExclusao);
-        beneficiario.setBenStatus(dto.benStatus);
+        beneficiario.setBenStatus("ATIVO");
         beneficiario.setBenNumero(dto.benNumero);
         if (dto.benTitularId != null) {
             beneficiario.setTitular(beneficiarioRepository.findById(dto.benTitularId).orElse(null));

@@ -22,8 +22,15 @@ public class UsuarioController {
 
     @PostMapping
     public ResponseEntity<UsuarioResponseDTO> criarUsuario(@RequestBody UsuarioRequestDTO request) {
-        UsuarioResponseDTO response = usuarioService.criarUsuario(request);
-        return ResponseEntity.ok(response);
+        logger.info("[criarUsuario] Iniciando criação de usuário: email={}, cpf={}, perfil={}", request.email, request.cpf, request.perfil);
+        try {
+            UsuarioResponseDTO response = usuarioService.criarUsuario(request);
+            logger.info("[criarUsuario] Usuário criado com sucesso: id={}, email={}", response.id, response.email);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("[criarUsuario] Erro ao criar usuário: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @GetMapping

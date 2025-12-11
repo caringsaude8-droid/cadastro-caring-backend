@@ -42,21 +42,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-
+        logger.info("[JwtAuthenticationFilter] doFilterInternal - path: {} method: {}", request.getRequestURI(), request.getMethod());
         String header = request.getHeader("Authorization");
-
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            logger.info("Recebido token JWT: " + token);
+            logger.info("[JwtAuthenticationFilter] Recebido token JWT: {}", token);
             try {
                 if (jwtUtil.validateToken(token)) {
                     String subject = jwtUtil.getSubject(token);
-                    logger.info("Token válido. Subject: " + subject);
+                    logger.info("[JwtAuthenticationFilter] Token válido. Subject: {}", subject);
                     if (subject != null) {
                         var claims = jwtUtil.getClaimsFromToken(token);
                         String perfil = claims != null && claims.get("perfil") != null ?
                             claims.get("perfil").toString() : "USER";
-                        logger.info("Perfil extraído do token: " + perfil);
+                        logger.info("[JwtAuthenticationFilter] Perfil extraído do token: {}", perfil);
                         List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                             new SimpleGrantedAuthority("ROLE_" + perfil));
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -65,15 +64,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
                 } else {
-                    logger.warn("Token JWT inválido ou expirado.");
+                    logger.warn("[JwtAuthenticationFilter] Token JWT inválido ou expirado.");
                 }
             } catch (Exception ex) {
-                logger.error("Falha na validação do token JWT: " + ex.getMessage());
+                logger.error("[JwtAuthenticationFilter] Falha na validação do token JWT: {}", ex.getMessage(), ex);
             }
         } else {
-            logger.warn("Header Authorization ausente ou mal formatado.");
+            logger.warn("[JwtAuthenticationFilter] Header Authorization ausente ou mal formatado.");
         }
-
         filterChain.doFilter(request, response);
     }
 

@@ -12,6 +12,7 @@ public class PerfilUsuarioConverter implements AttributeConverter<PerfilUsuario,
         switch (perfil) {
             case USER: return 1;
             case ADMIN: return 2;
+            case GESTOR: return 3;
             default: throw new IllegalArgumentException("PerfilUsuario desconhecido: " + perfil);
         }
     }
@@ -22,8 +23,8 @@ public class PerfilUsuarioConverter implements AttributeConverter<PerfilUsuario,
         switch (dbData) {
             case 1: return PerfilUsuario.USER;
             case 2: return PerfilUsuario.ADMIN;
+            case 3: return PerfilUsuario.GESTOR;
             default: throw new IllegalArgumentException("PerfilUsuario desconhecido no banco: " + dbData);
         }
     }
 }
-
