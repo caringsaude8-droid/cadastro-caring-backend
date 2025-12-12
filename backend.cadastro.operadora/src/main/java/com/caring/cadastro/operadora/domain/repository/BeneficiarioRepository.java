@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface BeneficiarioRepository extends JpaRepository<Beneficiario, Long> {
     List<Beneficiario> findByEmpresaIdAndBenCpf(Long empresaId, String benCpf);
+    List<Beneficiario> findByTitularIdAndEmpresaId(Long titularId, Long empresaId);
 }

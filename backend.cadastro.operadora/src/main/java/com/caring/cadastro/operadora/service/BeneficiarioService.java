@@ -6,6 +6,7 @@ import com.caring.cadastro.operadora.domain.repository.BeneficiarioRepository;
 import com.caring.cadastro.operadora.domain.repository.EmpresaRepository;
 import com.caring.cadastro.operadora.dto.BeneficiarioRequestDTO;
 import com.caring.cadastro.operadora.dto.BeneficiarioResponseDTO;
+import com.caring.cadastro.operadora.dto.DependenteDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -164,5 +165,18 @@ public class BeneficiarioService {
         return beneficiarios.stream()
             .map(this::toResponseDTO)
             .collect(java.util.stream.Collectors.toList());
+    }
+
+    public List<DependenteDTO> listarDependentes(Long titularId, Long empresaId) {
+        List<Beneficiario> dependentes = beneficiarioRepository.findByTitularIdAndEmpresaId(titularId, empresaId);
+        return dependentes.stream().map(b -> {
+            DependenteDTO dto = new DependenteDTO();
+            dto.id = b.getId();
+            dto.nome = b.getBenNomeSegurado();
+            dto.cpf = b.getBenCpf();
+            dto.relacao = b.getBenRelacaoDep();
+            dto.status = b.getBenStatus();
+            return dto;
+        }).collect(Collectors.toList());
     }
 }

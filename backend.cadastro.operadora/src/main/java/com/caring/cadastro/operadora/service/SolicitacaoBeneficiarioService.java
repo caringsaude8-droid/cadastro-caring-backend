@@ -192,24 +192,21 @@ public class SolicitacaoBeneficiarioService {
                 && solicitacao.getTipo() == com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.TipoMovimentacao.INCLUSAO) {
             try {
                 String dadosJsonOriginal = solicitacao.getDadosJson();
+                System.out.println("[DEBUG] dadosJson original: " + dadosJsonOriginal);
                 if (dadosJsonOriginal != null) {
-                    SolicitacaoRequestDTO dtoCompleto = objectMapper.readValue(
-                        dadosJsonOriginal,
-                        SolicitacaoRequestDTO.class
-                    );
-                    if (dtoCompleto.dadosPropostos != null) {
-                        java.util.Map<String, Object> dadosPropostosMap = objectMapper.convertValue(
-                            dtoCompleto.dadosPropostos, java.util.Map.class);
-                        if (dto.dadosAprovacao.benCodCartao != null) {
-                            dadosPropostosMap.put("benCodCartao", dto.dadosAprovacao.benCodCartao);
-                        }
-                        if (dto.dadosAprovacao.benCodUnimedSeg != null) {
-                            dadosPropostosMap.put("benCodUnimedSeg", dto.dadosAprovacao.benCodUnimedSeg);
-                        }
-                        dtoCompleto.dadosPropostos = dadosPropostosMap;
-                        solicitacao.setDadosJson(objectMapper.writeValueAsString(dtoCompleto));
-                        System.out.println("[LOG] DadosPropostos mesclados: " + dtoCompleto.dadosPropostos);
+                    // Tenta desserializar como Map para garantir flexibilidade
+                    java.util.Map<String, Object> dadosMap = objectMapper.readValue(
+                        dadosJsonOriginal, java.util.Map.class);
+                    System.out.println("[DEBUG] dadosMap antes: " + dadosMap);
+                    if (dto.dadosAprovacao.benCodCartao != null) {
+                        dadosMap.put("benCodCartao", dto.dadosAprovacao.benCodCartao);
                     }
+                    if (dto.dadosAprovacao.benCodUnimedSeg != null) {
+                        dadosMap.put("benCodUnimedSeg", dto.dadosAprovacao.benCodUnimedSeg);
+                    }
+                    System.out.println("[DEBUG] dadosMap depois: " + dadosMap);
+                    solicitacao.setDadosJson(objectMapper.writeValueAsString(dadosMap));
+                    System.out.println("[LOG] Dados de aprovação mesclados no JSON raiz.");
                 }
             } catch (Exception e) {
                 System.out.println("[ERROR] Erro ao mesclar dados de aprovação: " + e.getMessage());

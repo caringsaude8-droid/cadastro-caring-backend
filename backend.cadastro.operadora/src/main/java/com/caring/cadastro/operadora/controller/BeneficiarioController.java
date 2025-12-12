@@ -2,6 +2,7 @@ package com.caring.cadastro.operadora.controller;
 
 import com.caring.cadastro.operadora.dto.BeneficiarioRequestDTO;
 import com.caring.cadastro.operadora.dto.BeneficiarioResponseDTO;
+import com.caring.cadastro.operadora.dto.DependenteDTO;
 import com.caring.cadastro.operadora.service.BeneficiarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -51,5 +52,11 @@ public class BeneficiarioController {
     public ResponseEntity<List<BeneficiarioResponseDTO>> buscarPorEmpresaIdECpf(@RequestParam Long empresaId, @RequestParam String cpf) {
         List<BeneficiarioResponseDTO> beneficiarios = beneficiarioService.buscarPorEmpresaIdECpf(empresaId, cpf);
         return ResponseEntity.ok(beneficiarios);
+    }
+
+    @GetMapping("/{id}/dependentes")
+    public ResponseEntity<List<DependenteDTO>> listarDependentes(@PathVariable Long id, @RequestParam Long empresaId) {
+        List<DependenteDTO> dependentes = beneficiarioService.listarDependentes(id, empresaId);
+        return ResponseEntity.ok(dependentes);
     }
 }
