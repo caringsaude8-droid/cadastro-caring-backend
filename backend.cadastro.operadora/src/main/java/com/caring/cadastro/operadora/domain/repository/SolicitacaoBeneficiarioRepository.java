@@ -35,3 +35,4 @@ public interface SolicitacaoBeneficiarioRepository extends JpaRepository<Solicit
     List<SolicitacaoBeneficiario> findByEmpresaId(Long empresaId);
 }
 
+

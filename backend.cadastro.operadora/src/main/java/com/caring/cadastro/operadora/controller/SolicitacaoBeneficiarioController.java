@@ -7,6 +7,7 @@ import com.caring.cadastro.operadora.dto.HistoricoSolicitacaoDTO;
 import com.caring.cadastro.operadora.dto.AtualizacaoSolicitacaoDTO;
 import com.caring.cadastro.operadora.service.SolicitacaoBeneficiarioService;
 import com.caring.cadastro.operadora.security.JwtUtil;
+import com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -99,6 +100,17 @@ public class SolicitacaoBeneficiarioController {
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizarSolicitacao(@PathVariable Long id, @RequestBody AtualizacaoSolicitacaoDTO dto) {
         solicitacaoService.atualizarSolicitacao(id, dto);
+        return ResponseEntity.ok().build();
+    }
+    //endpoint para atualizar somente o campo dadosJson por fora do fluxo
+    @PutMapping("/{id}/dados-propostos")
+    public ResponseEntity<?> atualizarDadosPropostos(@PathVariable Long id, @RequestBody String dadosPropostosJson) {
+        SolicitacaoBeneficiario solicitacao = solicitacaoService.buscarEntidadePorId(id);
+        if (solicitacao == null) {
+            return ResponseEntity.notFound().build();
+        }
+        solicitacao.setDadosJson(dadosPropostosJson);
+        solicitacaoService.salvarSomenteDadosJson(solicitacao);
         return ResponseEntity.ok().build();
     }
 

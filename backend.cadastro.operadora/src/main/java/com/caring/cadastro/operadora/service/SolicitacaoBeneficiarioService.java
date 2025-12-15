@@ -239,6 +239,21 @@ public class SolicitacaoBeneficiarioService {
                     beneficiario.setBenDtaExclusao(new Date());
                     beneficiario.setBenMotivoExclusao(solicitacao.getMotivoExclusao());
                     beneficiarioRepository.save(beneficiario);
+
+                    // NOVO: Rescindir todos os dependentes do titular
+                    if (beneficiario.getId() != null && beneficiario.getEmpresa() != null) {
+                        Long titularId = beneficiario.getId();
+                        Long empresaId = beneficiario.getEmpresa().getId();
+                        List<Beneficiario> dependentes = beneficiarioRepository.findByTitularIdAndEmpresaId(titularId, empresaId);
+                        for (Beneficiario dependente : dependentes) {
+                            dependente.setBenStatus("RESCINDIDO");
+                            dependente.setBenDtaExclusao(new Date());
+                            dependente.setBenMotivoExclusao("Rescindido automaticamente por exclusão do titular");
+                            // Atualiza o tipo motivo igual ao do titular
+                            dependente.setBenTipoMotivo(beneficiario.getBenTipoMotivo());
+                        }
+                        beneficiarioRepository.saveAll(dependentes);
+                    }
                     break;
 
                 case ALTERACAO:
@@ -403,6 +418,14 @@ public class SolicitacaoBeneficiarioService {
             }
         }
         solicitacao.setStatus(SolicitacaoBeneficiario.StatusSolicitacao.PENDENTE); // volta para análise
+        solicitacaoRepository.save(solicitacao);
+    }
+
+    public SolicitacaoBeneficiario buscarEntidadePorId(Long id) {
+        return solicitacaoRepository.findById(id).orElse(null);
+    }
+
+    public void salvarSomenteDadosJson(SolicitacaoBeneficiario solicitacao) {
         solicitacaoRepository.save(solicitacao);
     }
 }
