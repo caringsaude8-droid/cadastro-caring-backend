@@ -4,6 +4,7 @@ import com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.TipoM
 import com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.StatusSolicitacao;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
+import java.util.List;
 
 public class SolicitacaoResponseDTO {
     public Long id;
@@ -33,4 +34,5 @@ public class SolicitacaoResponseDTO {
     // Dados do beneficiário para contexto (opcional)
     public BeneficiarioResponseDTO beneficiarioAtual;
     public String dadosJson;
+    public List<BenAnexoDTO> anexos;
 }

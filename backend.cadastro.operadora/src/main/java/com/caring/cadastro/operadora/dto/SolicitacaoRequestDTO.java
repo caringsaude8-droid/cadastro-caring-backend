@@ -3,6 +3,8 @@ package com.caring.cadastro.operadora.dto;
 import com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario.TipoMovimentacao;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SolicitacaoRequestDTO {
     public Long beneficiarioId; // null para inclusões
@@ -20,6 +22,9 @@ public class SolicitacaoRequestDTO {
     public String observacoes;
     public String observacoesAprovacao;
 
+    // Campo opcional para anexos
+    public List<BenAnexoDTO> anexos;
+
     public SolicitacaoRequestDTO() {}
 
     @Override
@@ -35,6 +40,7 @@ public class SolicitacaoRequestDTO {
                 ", beneficiarioCpf='" + beneficiarioCpf + '\'' +
                 ", dadosPropostos=" + dadosPropostos +
                 ", empresaId=" + empresaId +
+                ", anexos=" + anexos +
                 '}';
     }
 }

@@ -8,6 +8,8 @@ import com.caring.cadastro.operadora.dto.AtualizacaoSolicitacaoDTO;
 import com.caring.cadastro.operadora.service.SolicitacaoBeneficiarioService;
 import com.caring.cadastro.operadora.security.JwtUtil;
 import com.caring.cadastro.operadora.domain.entity.SolicitacaoBeneficiario;
+import com.caring.cadastro.operadora.domain.repository.BenAnexoRepository;
+import com.caring.cadastro.operadora.domain.entity.BenAnexo;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +18,13 @@ import org.springframework.web.bind.annotation.*;
 
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.util.Base64;
 import java.util.List;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/cadastro/v1/solicitacoes")
@@ -24,6 +32,9 @@ public class SolicitacaoBeneficiarioController {
 
     private final SolicitacaoBeneficiarioService solicitacaoService;
     private final JwtUtil jwtUtil;
+
+    @Autowired
+    private BenAnexoRepository benAnexoRepository;
 
     @Autowired
     public SolicitacaoBeneficiarioController(SolicitacaoBeneficiarioService solicitacaoService, JwtUtil jwtUtil) {
@@ -114,6 +125,44 @@ public class SolicitacaoBeneficiarioController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/anexos/{anexoId}/download")
+    public ResponseEntity<BenAnexoDTO> downloadAnexo(@PathVariable Long anexoId) {
+        BenAnexo anexo = benAnexoRepository.findById(anexoId).orElse(null);
+        if (anexo == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            byte[] fileBytes = Files.readAllBytes(java.nio.file.Paths.get(anexo.getCaminho()));
+            BenAnexoDTO dto = new BenAnexoDTO();
+            dto.nomeOriginal = anexo.getNomeOriginal();
+            dto.tipoMime = anexo.getTipoMime();
+            dto.tamanho = anexo.getTamanho();
+            dto.base64 = Base64.getEncoder().encodeToString(fileBytes);
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/anexos/{anexoId}/stream")
+    public ResponseEntity<InputStreamResource> streamAnexo(@PathVariable Long anexoId) {
+        BenAnexo anexo = benAnexoRepository.findById(anexoId).orElse(null);
+        if (anexo == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            FileInputStream fis = new FileInputStream(anexo.getCaminho());
+            InputStreamResource resource = new InputStreamResource(fis);
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + anexo.getNomeOriginal() + "\"")
+                .contentType(MediaType.parseMediaType(anexo.getTipoMime() != null ? anexo.getTipoMime() : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+                .contentLength(anexo.getTamanho() != null ? anexo.getTamanho() : fis.available())
+                .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     // Métodos auxiliares simples
     private Long extractUserIdFromAuth(Authentication authentication) {
         if (authentication != null && authentication.getName() != null) {
@@ -142,5 +191,12 @@ public class SolicitacaoBeneficiarioController {
         }
         // Fallback: retorna o padrão antigo
         return "Usuario-" + extractUserIdFromAuth(authentication);
+    }
+
+    public static class BenAnexoDTO {
+        public String nomeOriginal;
+        public String tipoMime;
+        public Long tamanho;
+        public String base64;
     }
 }

@@ -9,6 +9,13 @@ import com.caring.cadastro.operadora.domain.repository.BeneficiarioRepository;
 import com.caring.cadastro.operadora.domain.repository.SolicitacaoBeneficiarioRepository;
 import com.caring.cadastro.operadora.domain.repository.SolicitacaoHistoricoRepository;
 import com.caring.cadastro.operadora.dto.*;
+import com.caring.cadastro.operadora.domain.entity.BenAnexo;
+import com.caring.cadastro.operadora.domain.repository.BenAnexoRepository;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Base64;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +55,9 @@ public class SolicitacaoBeneficiarioService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Autowired
+    private BenAnexoRepository benAnexoRepository;
 
     public SolicitacaoResponseDTO criarSolicitacao(SolicitacaoRequestDTO dto, Long usuarioId, String usuarioNome) {
         System.out.println("[DEBUG] dto.empresaId recebido: " + dto.empresaId);
@@ -140,6 +150,31 @@ public class SolicitacaoBeneficiarioService {
 
         solicitacao = solicitacaoRepository.save(solicitacao);
         entityManager.flush();
+        // Processa anexos se enviados
+        if (dto.anexos != null && !dto.anexos.isEmpty()) {
+            Long solicitacaoId = solicitacao.getId();
+            for (BenAnexoDTO anexoDTO : dto.anexos) {
+                try {
+                    String nomeSalvo = solicitacaoId + "_" + dto.beneficiarioCpf + "_" + System.currentTimeMillis() + "_" + anexoDTO.nomeOriginal;
+                    String caminho = "anexos/" + nomeSalvo;
+                    byte[] arquivoBytes = java.util.Base64.getDecoder().decode(anexoDTO.base64);
+                    java.nio.file.Files.createDirectories(java.nio.file.Paths.get("anexos"));
+                    java.nio.file.Files.write(java.nio.file.Paths.get(caminho), arquivoBytes, java.nio.file.StandardOpenOption.CREATE);
+                    BenAnexo anexo = new BenAnexo();
+                    anexo.setSolicitacao(solicitacao);
+                    anexo.setNomeOriginal(anexoDTO.nomeOriginal);
+                    anexo.setNomeSalvo(nomeSalvo);
+                    anexo.setCaminho(caminho);
+                    anexo.setTipoMime(anexoDTO.tipoMime);
+                    anexo.setTamanho((long) arquivoBytes.length);
+                    anexo.setDataUpload(java.time.LocalDateTime.now());
+                    anexo.setUsuarioUpload(usuarioNome);
+                    benAnexoRepository.save(anexo);
+                } catch (Exception e) {
+                    throw new RuntimeException("Erro ao salvar anexo: " + anexoDTO.nomeOriginal, e);
+                }
+            }
+        }
         System.out.println("[DEBUG] empresaId na solicitação após save/flush: " + (solicitacao.getEmpresa() != null ? solicitacao.getEmpresa().getId() : null));
         return toResponseDTO(solicitacao);
     }
@@ -156,14 +191,14 @@ public class SolicitacaoBeneficiarioService {
 
         // Corrigido: garantir conversão para DTO
         return solicitacoes.stream()
-            .map(SolicitacaoBeneficiarioService::toResponseDTO)
+            .map(this::toResponseDTO)
             .collect(Collectors.toList());
     }
 
     public List<SolicitacaoResponseDTO> listarTodasSolicitacoes() {
         List<SolicitacaoBeneficiario> solicitacoes = solicitacaoRepository.findAll();
         return solicitacoes.stream()
-            .map(SolicitacaoBeneficiarioService::toResponseDTO)
+            .map(this::toResponseDTO)
             .collect(Collectors.toList());
     }
 
@@ -366,7 +401,7 @@ public class SolicitacaoBeneficiarioService {
         }
     }
 
-    public static SolicitacaoResponseDTO toResponseDTO(SolicitacaoBeneficiario solicitacao) {
+    public SolicitacaoResponseDTO toResponseDTO(SolicitacaoBeneficiario solicitacao) {
         SolicitacaoResponseDTO dto = new SolicitacaoResponseDTO();
         dto.id = solicitacao.getId();
         dto.numeroSolicitacao = solicitacao.getNumeroSolicitacao();
@@ -385,19 +420,36 @@ public class SolicitacaoBeneficiarioService {
         dto.observacoesAprovacao = solicitacao.getObservacoesAprovacao();
         dto.empresaId = solicitacao.getEmpresa() != null ? solicitacao.getEmpresa().getId() : null;
         dto.dadosJson = solicitacao.getDadosJson();
+        // Busca anexos vinculados e preenche apenas metadados
+        if (solicitacao.getId() != null) {
+            java.util.List<com.caring.cadastro.operadora.domain.entity.BenAnexo> anexos = benAnexoRepository.findBySolicitacaoId(solicitacao.getId());
+            dto.anexos = anexos.stream().map(this::toBenAnexoDTO).collect(java.util.stream.Collectors.toList());
+        } else {
+            dto.anexos = java.util.Collections.emptyList();
+        }
+        return dto;
+    }
+
+    private BenAnexoDTO toBenAnexoDTO(com.caring.cadastro.operadora.domain.entity.BenAnexo anexo) {
+        BenAnexoDTO dto = new BenAnexoDTO();
+        dto.id = anexo.getId();
+        dto.nomeOriginal = anexo.getNomeOriginal();
+        dto.tipoMime = anexo.getTipoMime();
+        dto.tamanho = anexo.getTamanho();
+        dto.base64 = null; // Não retorna conteúdo na listagem
         return dto;
     }
 
     public SolicitacaoResponseDTO buscarPorId(Long id) {
         return solicitacaoRepository.findById(id)
-            .map(SolicitacaoBeneficiarioService::toResponseDTO)
+            .map(this::toResponseDTO)
             .orElse(null);
     }
 
     public List<SolicitacaoResponseDTO> listarSolicitacoesPorEmpresa(Long empresaId) {
         List<SolicitacaoBeneficiario> solicitacoes = solicitacaoRepository.findByEmpresaId(empresaId);
         return solicitacoes.stream()
-            .map(SolicitacaoBeneficiarioService::toResponseDTO)
+            .map(this::toResponseDTO)
             .collect(Collectors.toList());
     }
 
